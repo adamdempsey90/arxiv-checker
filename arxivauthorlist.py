@@ -23,18 +23,6 @@ numbers= [re.findall("\d+\.\d+",num.text)[0] for num in numbers]
 
 
 
-
-#for a in soup.find_all('a'):
-#    try:
-#        link = a['href']
-#        if '+' in link:
-#            name = link.split('+')[-1].split('/')[0]
-#            author_list.append(name.lower())
-#    except KeyError:
-#        pass
-
-
-
 with open('/Users/zeus/ciera_members/ciera_members.txt','r') as f:
     ciera=f.readlines()
 
