@@ -41,5 +41,5 @@ if len(ciera_authors) > 0:
     for (person,title,number) in ciera_authors:
         print person + ': ' + number + ', ' + title
 else:
-    print 'Nobody form ciera posted a paper today.'
+    print 'Nobody from ciera posted a paper today.'
 
