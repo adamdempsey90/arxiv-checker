@@ -15,6 +15,7 @@ physics mailings::
   arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt')
 
 To run straight from the command line::
+
     python -c "import arxivchecker; arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt')
  
 The Arxiv Checker requires the request, bs4, and re modules. 
