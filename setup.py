@@ -19,7 +19,7 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/adamdempsey90/ArxivChecker',
+    url='https://github.com/adamdempsey90/arxiv-checker',
 
     py_modules=['arxivchecker'],
 
