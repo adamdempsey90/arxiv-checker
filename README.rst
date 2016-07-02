@@ -2,7 +2,7 @@ arxiv-checker
 ============
 
 Cross-check a file of author names against the most recent axiv.org
-mailing.
+mailing. Works with python 2.7 or python 3. 
 
 To install::
 
@@ -19,3 +19,5 @@ To run straight from the command line::
     python -c "import arxivchecker; arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt')
  
 The Arxiv Checker requires the request, bs4, and re modules. 
+
+
