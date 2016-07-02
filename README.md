@@ -3,11 +3,11 @@ Cross-check a file of author names against the most recent axiv.org mailing.
 
 To install: 
 ~~~~
-git clone https://github.com/adamdempsey90/ArxivChecker.git
+pip install arxiv-checker
 ~~~~
 To check the names contained in authors.txt against the astro-ph, gq-qc, and physics mailings:
 ~~~~
-python ArxivChecker/arxivchecker.py astro-ph gr-qc physics authors.txt
+arxiv-checker astro-ph gr-qc physics authors.txt
 ~~~~
 
 The Arxiv Checker requires the request, bs4, and re modules. 
@@ -16,8 +16,6 @@ It's also easy to set this script up to run every morning after a new mailing ha
 ~~~~
 if [[ $(date +%u) -lt 6 ]]; # Check that it's a weekday
 then
-    cd ~/ArxivChecker
-    git pull
-    python arxivchecker.py astro-ph /path/to/file/members.txt 
+    arxiv-checker astro-ph /path/to/file/members.txt 
 fi
 ~~~~
