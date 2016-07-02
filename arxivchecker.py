@@ -42,14 +42,14 @@ class Paper():
         """ Remove the last howmany authors form the paper. """
         for i in range(howmany):
             if len(self.authors) > 0:
-                print 'Removing ' + self.authors.pop(-1) + ' from author list'
+                print('Removing ' + self.authors.pop(-1) + ' from author list')
 
     def remove_identifier(self, howmany=1):
         """ Remove the last howmany identifiers form the paper. """
         for i in range(howmany):
             if len(self.identifiers) > 0:
-                print 'Removing ' + self.identifiers.pop(-1) \
-                    + ' from identifier list'
+                print('Removing ' + self.identifiers.pop(-1) +
+                      ' from identifier list')
 
     def __str__(self):
         """ Display the paper in a somewhat nice looking way. """
@@ -58,7 +58,7 @@ class Paper():
         lp_left = len(pad_left)
         lp_right = len(pad_right)
         lp_tot = lp_left + lp_right
-        authstr = ', '.join(self.authors)
+        authstr = 'Including ' + ', '.join(self.authors)
         maxlen = max([len(self.title), len(self.link), len(authstr)]) + lp_tot
 
         border = ''.join(['%'] * maxlen)
@@ -97,7 +97,7 @@ def check_authors(arxiv_names, author_filename):
 
     """
 
-    print 'Reading the names contained in ', author_filename
+    print('Reading the names contained in ' + author_filename)
     if hasattr(arxiv_names, 'lower') and hasattr(arxiv_names, 'upper'):
         # We have just a single arxiv
         arxiv_names = [arxiv_names]
@@ -108,7 +108,7 @@ def check_authors(arxiv_names, author_filename):
     for arxiv_name in arxiv_names:
         url_str = 'http://arxiv.org/list/' + arxiv_name + '/new'
 
-        print '\tChecking ', url_str
+        print('\tChecking ' + url_str)
 
         bowl = requests.get(url_str)
         soup = bs4.BeautifulSoup(bowl.text, 'html.parser')
@@ -139,7 +139,7 @@ def check_authors(arxiv_names, author_filename):
         with open(author_filename, 'r') as f:
             author_list = f.readlines()
     except IOError:
-        print author_filename, 'could not be found!'
+        print(author_filename + ' could not be found!')
         raise
 
     author_list = [line.strip().lower() for line in author_list]
@@ -173,9 +173,9 @@ def check_authors(arxiv_names, author_filename):
 
     if len(papers) > 0:
         for paper in papers:
-            print paper
+            print(paper)
     else:
-        print 'No one posted a paper today.'
+        print('No one posted a paper today.')
 
 
 if __name__ == "__main__":
@@ -189,4 +189,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         check_authors(sys.argv[1:-1], sys.argv[-1])
     else:
-        print 'Please supply an arxiv name and a list of authors.'
+        print('Please supply an arxiv name and a list of authors.')
