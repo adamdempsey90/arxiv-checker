@@ -1,4 +1,4 @@
-ArxivChecker
+arxiv-checker
 ============
 
 Cross-check a file of author names against the most recent axiv.org
