@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 from codecs import open
 from os import path
 
@@ -7,16 +7,21 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(path.join(here, 'version.txt'), encoding='utf-8') as f:
+    version_number = f.read().strip()
+
 setup(
     name='arxiv-checker',
 
-    version='1.2.0',
+    version=version_number,
 
     description='Cross check the most recent arxiv mailing against a list of authors.',
     long_description=long_description,
 
     # The project's main homepage.
     url='https://github.com/adamdempsey90/ArxivChecker',
+
+    py_modules=['arxivchecker'],
 
     # Author details
     author='Adam M. Dempsey',
@@ -34,8 +39,11 @@ setup(
         'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
-        'Intended Audience :: Scientists/Researchers',
-        'Topic :: Science :: Research :: arXiv',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering',
+        'Topic :: Scientific/Engineering :: Physics',
+        'Topic :: Scientific/Engineering :: Mathematics',
+        'Topic :: Scientific/Engineering :: Astronomy',
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: MIT License',
@@ -52,6 +60,6 @@ setup(
     # What does your project relate to?
     keywords='arXiv science research journal',
 
-    install_requires=['requests','bs4','re'],
+    install_requires=['requests','bs4'],
 
 )

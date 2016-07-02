@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import requests
 import bs4
 import re
