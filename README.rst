@@ -15,11 +15,7 @@ physics mailings::
 
 The Arxiv Checker requires the request, bs4, and re modules.
 
-  It's also easy to set this script up to run every morning after a new
-  mailing has been sent out using a Cronjob. For example, on my work
-  computer I have a Cronjob that runs an update script every morning at
-  8 am and emails me the results. To monitor arxiv I added these lines
-  at the end of my update script.::
+It's also easy to set this script up to run every morning after a new mailing has been sent out using a Cronjob. For example, on my work computer I have a Cronjob that runs an update script every morning at 8 am and emails me the results. To monito arxiv I added these lines at the end of my update script::
   
     if [[ $(date +%u) -lt 6 ]]; # Check that it's a weekday
     then 
