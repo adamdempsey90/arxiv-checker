@@ -1,5 +1,6 @@
 Ideas for new features:
   -check list of author names in addition to a file
   -check against keywords in abstract and title
-  -fix % sign bug in emails.
+  -check a given month and year, e.g, http://arxiv.org/list?year=16&month=06&archive=astro-ph&show=2000&submit=Go
+  -fix % sign bug in emails / change to #.
   -return the list of papers
