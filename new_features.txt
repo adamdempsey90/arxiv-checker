@@ -1,0 +1,5 @@
+Ideas for new features:
+  -check list of author names in addition to a file
+  -check against keywords in abstract and title
+  -fix % sign bug in emails.
+  -return the list of papers
