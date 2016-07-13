@@ -46,7 +46,10 @@ Note however that this can take a while to complete (there could be more than 10
 Finally, to run straight from the command line::
 
     python -c "import arxivchecker; arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt') > results.txt
- 
+
+To email the results use the Unix mail command::
+
+    mail -s "Arxiv Mailing" email@gmail.com < results.txt
  
 The arxivchecker requires the request and bs4 modules. 
 
