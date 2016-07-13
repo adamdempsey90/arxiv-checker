@@ -1,6 +1,9 @@
+# -*- coding: <utf-8> -*-
+from __future__ import print_function
 import requests
 import bs4
 import re
+import sys
 import os
 
 
@@ -69,7 +72,10 @@ class Paper():
                 border + newline_char + \
                 newline_char
 
-        return strbody        #return strbody.encode("utf8","ignore")
+        # Check for python 2 to convert from unicode
+        if sys.version_info < (3,):
+            strbody = strbody.encode("utf8","ignore")
+        return strbody
 
 def scrape_arxiv(arxiv_names,month=None,year=None,number=12000):
     """
