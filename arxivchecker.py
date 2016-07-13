@@ -1,101 +1,90 @@
 import requests
 import bs4
 import re
+import os
 
 
 class Paper():
     """ A class that holds the information for an Arxiv paper. """
 
-    def __init__(self, number, title, names=None, ids=None):
-        """ Initialize a paper with the arxiv number and the title.
-            The authors and ids can also be added.
-        """
+    def __init__(self, number, title, auths,abstract):
+        """ Initialize a paper with the arxiv number, title, authors, and abstract. """
 
         self.number = number
         self.title = title
-        self.authors = []
-        self.identifiers = []
+        self.authors = auths.values()
+        self.author_ids = auths.keys()
+        self.author_dict = auths.copy()
+        self.abstract = abstract
         self.link = u'http://arxiv.org/abs/' + number
 
-        if names is not None:
-            self.add_author(names)
-        if ids is not None:
-            self.add_identifier(ids)
+    def format_line(self,strval, maxlength,pad_left,pad_right):
+        """ Function to format a line of a given length.
+        Used by the __str__ routine."""
+        temp = re.sub("(.{" + "{:d}".format(maxlength-1) + "})", u"\\1\u2010\n", strval.replace('\n',''), 0, re.DOTALL).strip()
 
-    def add_author(self, names):
-        """ Add the authors names to the paper. """
-        try:
-            self.authors = self.authors + names
-        except TypeError:
-            self.authors.append(names)
+        temp = temp.split('\n')
 
-    def add_identifier(self, ids):
-        """ Add the identifiers ids to the paper. """
-        try:
-            self.identifers = self.identifiers + ids
-        except TypeError:
-            self.identifiers.append(ids)
+        temp[-1] = temp[-1] +''.join([u'\u0020']*(maxlength-len(temp[-1])))
 
-    def remove_author(self, howmany=1):
-        """ Remove the last howmany authors form the paper. """
-        for i in range(howmany):
-            if len(self.authors) > 0:
-                print('Removing ' + self.authors.pop(-1) + ' from author list')
-
-    def remove_identifier(self, howmany=1):
-        """ Remove the last howmany identifiers form the paper. """
-        for i in range(howmany):
-            if len(self.identifiers) > 0:
-                print('Removing ' + self.identifiers.pop(-1) +
-                      ' from identifier list')
+        return pad_left + (pad_right + '\n' + pad_left).join(temp) + pad_right
 
     def __str__(self):
         """ Display the paper in a somewhat nice looking way. """
-        pad_left = '%%%  '
-        pad_right = '  %%%'
-        lp_left = len(pad_left)
-        lp_right = len(pad_right)
-        lp_tot = lp_left + lp_right
-        authstr = 'Including ' + ', '.join(self.authors)
-        maxlen = max([len(self.title), len(self.link), len(authstr)]) + lp_tot
 
-        border = ''.join(['%'] * maxlen)
-        spacer = pad_left + ''.join([' '] * (maxlen - lp_tot)) + pad_right
-        spacer_title = ''.join([' '] * (maxlen - len(self.title) - lp_tot))
-        spacer_link = ''.join([' '] * (maxlen - len(self.link) - lp_tot))
-        spacer_authstr = ''.join([' '] * (maxlen - len(authstr) - lp_tot))
-        strbody = '\n\n' + \
-            border + \
-            '\n' + spacer + \
-            '\n' + pad_left + self.title + spacer_title + pad_right + \
-            '\n' + pad_left + self.link + spacer_link + pad_right + \
-            '\n' + pad_left + authstr + spacer_authstr + pad_right + \
-            '\n' + spacer + \
-            '\n' + border + '\n'
-        return strbody
+        maxlen = 80
+        pad_char = u"\u0025"
+        newline_char = u"\u000A"
+        space_char = u"\u0020"
+        tab_char = space_char + space_char + space_char + space_char
+        comma_char = u"\u002C"
+        and_char = u"\u0026"
 
 
-def check_authors(arxiv_names, author_filename):
+        pad_left = pad_char + pad_char + pad_char + tab_char
+        pad_right = tab_char + pad_char + pad_char + pad_char
+
+        if len(self.authors) == 1:
+            authstr = self.authors[0]
+        else:
+            authstr = (comma_char + space_char).join(self.authors[:-1])
+            authstr += comma_char + space_char + and_char + space_char + self.authors[-1]
+
+        authstr  = self.format_line(authstr,  maxlen, pad_left, pad_right)
+        titlestr = self.format_line(self.title, maxlen, pad_left, pad_right)
+        linkstr  = self.format_line(self.link, maxlen, pad_left, pad_right)
+        border = ''.join([pad_char]*(maxlen + len(pad_left) + len(pad_right)))
+        blank_line = pad_left + ''.join([space_char] * maxlen) + pad_right
+
+
+        strbody = newline_char + \
+                border + newline_char + \
+                blank_line  + newline_char + \
+                titlestr + newline_char + \
+                blank_line  + newline_char + \
+                linkstr + newline_char + \
+                blank_line  + newline_char + \
+                authstr + newline_char + \
+                blank_line  + newline_char + \
+                border + newline_char + \
+                newline_char
+
+        return strbody.encode("utf8","ignore")
+
+def scrape_arxiv(arxiv_names,month=None,year=None,number=12000):
+    """
+    Scrape the given arxiv pages.
+    By default we grab all of the papers in the latest listing.
+    You can also specify a certain year and month using the month and year arguments.
+    Setting month = 'all' will grab all of the papers for the year.
+    Use the number argument to only select a certain number of papers.
+    Note that it takes roughly 30-40 seconds to grab ~1,500 papers.
     """
 
-    Check the new arxiv mailing for the given authors.
-    arxiv_names = The arxivs you're interested in, e.g astro-ph
-        To check multiple arxivs include them as a list.
+    new = False
+    if None in [month,year]:
+        new = True
 
-    author_filename = text file that contains the names of the authors
-                    you want to check for.
-
-        The format of the file should be one name per line and Last, First, e.g
-
-        Smith,John
-        James, Tom
-
-    An example of a call would be,
-    check_authors( ['astro-ph','gr-qc','hep-th','physics'], '~/my_list.txt')
-
-    """
-
-    print('Reading the names contained in ' + author_filename)
     if hasattr(arxiv_names, 'lower') and hasattr(arxiv_names, 'upper'):
         # We have just a single arxiv
         arxiv_names = [arxiv_names]
@@ -103,26 +92,50 @@ def check_authors(arxiv_names, author_filename):
     authors = []
     titles = []
     numbers = []
+    abstracts= []
+
     for arxiv_name in arxiv_names:
-        url_str = 'http://arxiv.org/list/' + arxiv_name + '/new'
 
-        print('\tChecking ' + url_str)
+        url_str = u'http://arxiv.org/list/'
+        if new:
+            url_str = url_str +  arxiv_name + u'/new'
+        else:
+            try:
+                if month.lower() == 'all':
+                    url_str = url_str + '?year={:02d}&month=all&archive={}&show={:d}'.format(year,arxiv_name,number)
+            except AttributeError:
+                url_str = url_str + '?year={:02d}&month={:02d}&archive={}&show={:d}'.format(year,month,arxiv_name,number)
 
+        print(u'\tChecking ' + url_str)
         bowl = requests.get(url_str)
+        print(u'\tParsing data...')
         soup = bs4.BeautifulSoup(bowl.text, 'html.parser')
 
         # Every new paper is enclosed in <dd> </dd> tags
         entries = soup.find_all('dd')
         auth_t = [entry.find_next('div', {'class': 'list-authors'}).text.split(
-            ':')[-1].strip().split(', \n') for entry in entries]
+            'Authors:')[-1].strip().split(', \n') for entry in entries]
         handles = [[val['href'].split('+')[-1].split('/')[0].lower()
                     for val in entry.find_all('a')] for entry in entries]
 
         authors = authors + [dict(zip(h, a))
                              for h, a in zip(handles, auth_t)]
 
-        titles_t = [entry.find_next('div', {'class': 'list-title'}).text.split(
-            ':')[-1].strip() for entry in entries]
+        titles_t = [entry.find_next('div', {'class': 'list-title'}).text.split('Title:')[-1].strip()  for entry in entries]
+
+        if new:
+            abstracts_t = []
+            for entry in entries:
+                temp = entry.find_next('p', {'class': 'mathjax'})
+                if temp is None:
+                    abstracts_t.append('')
+                else:
+                    abstracts_t.append(temp.text)
+        else:
+            abstracts_t = ['']*len(entries)
+
+
+        abstracts = abstracts + abstracts_t
 
         titles = titles + titles_t
 
@@ -130,61 +143,118 @@ def check_authors(arxiv_names, author_filename):
         numbers_t = soup.find_all('span', {'class': 'list-identifier'})
         numbers = numbers + [re.findall("\d+\.\d+", num.text)[0]
                              for num in numbers_t]
+    return [Paper(*res) for res in zip(numbers,titles,authors,abstracts)]
 
-    # Now we crossreference the author list versus the department
+
+
+def check_keywords(arxiv_names, keywords,month=None,year=None,number=12000):
+    """ Check the given arxivs against a list of keywords.
+    The keywords can either be in a text file or in a list.
+    Returns a list of papers that contain the keywords in either their
+    title, abstract, or author list."""
+
+    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number)
+
+    return check_keywords_papers(papers,keywords)
+
+
+def check_keywords_papers(papers,keywords):
+    """ Check the given papers against a list of keywords.
+    The keywords can either be in a text file or in a list.
+    Returns a list of papers that contain the keywords in either their
+    title, abstract, or author list."""
 
     try:
-        with open(author_filename, 'r') as f:
-            author_list = f.readlines()
-    except IOError:
-        print(author_filename + ' could not be found!')
-        raise
+        if os.path.exists(keywords):
+            with open(keywords, 'r') as f:
+                print('Reading the keywords contained in ' + keywords)
+                keyword_list = f.readlines()
+            keyword_list = [line.strip().lower() for line in keyword_list]
+        else:
+            print('Checking for ' + keywords)
+            keyword_list = [keywords.strip().lower()]
 
-    author_list = [line.strip().lower() for line in author_list]
+    except TypeError:
+        print('Checking for the keywords: ' + '; '.join(keywords))
+        keyword_list = [line.strip().lower() for line in keywords]
+
+
+    records = []
+
+    for paper in papers:
+        if any(key in ' '.join([paper.abstract.lower() , paper.title.lower()]
+            + [a.lower() for a in paper.authors]) for key in keyword_list):
+
+            records.append(paper)
+
+
+
+    if len(records) > 0:
+        print("Found {:d} papers".format(len(records)))
+        for record in records:
+            print(record)
+
+        return records
+    else:
+        print('No results.')
+        return None
+
+
+def check_authors(arxiv_names, authors, month=None, year=None, number=12000):
+    """ Check the given arxivs against a list of authors given in the form Last, First.
+    The authors can either be in a text file or in a list.
+    Returns a list of papers that contain the authors."""
+
+    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number)
+
+    return check_authors_papers(papers,authors)
+
+def check_authors_papers(papers,authors):
+    """ Check the given papers against a list of authors given in the form Last, First.
+    The authors can either be in a text file or in a list.
+    Returns a list of papers that contain the authors."""
+
+    try:
+        if os.path.exists(authors):
+            with open(authors, 'r') as f:
+                print('Reading the names contained in ' + authors)
+                author_list = f.readlines()
+            author_list = [line.strip().lower() for line in author_list]
+        else:
+            print('Checking for ' + authors)
+            author_list = [authors.strip().lower()]
+
+    except TypeError:
+        print('Checking for the names: ' + '; '.join(authors))
+        author_list = [line.strip().lower() for line in authors]
+
+
 
     first_names = [line.split(',')[1].strip().lower() for line in author_list]
     id_list = [(line.split(',')[0].replace('-', '_').strip() + '_' +
                 line.split(',')[1].strip()[0]).lower() for line in author_list]
 
-    papers = []
-    for person, id_t in zip(first_names, id_list):
-        for auths, title, number in zip(authors, titles, numbers):
-            if id_t in auths.keys():
-                # Check that the first name matches to avoid non-unique
-                # identifiers
-                if person in auths[id_t].lower():
-                    if number not in [paper.number for paper in papers]:
-                        # New paper
-                        record = Paper(number, title)
-                        record.add_author(auths[id_t])
-                        record.add_identifier(id_t)
-                        papers.append(record)
-                    else:
-                        # Add this author to the paper
-                        for i, paper in enumerate(papers):
-                            # Make sure we don't add the same author twice to
-                            # the same paper
-                            if id_t not in paper.identifiers:
-                                if number == paper.number:
-                                    papers[i].add_author(auths[id_t])
-                                    papers[i].add_identifier(id_t)
 
-    if len(papers) > 0:
-        for paper in papers:
-            print(paper)
+    records = []
+    for paper in papers:
+        res = False
+        for name,id_t in zip(first_names,id_list):
+            try:
+                paper_name = paper.author_dict[id_t]
+                if name in paper_name.lower():
+                    res = True
+            except KeyError:
+                continue
+        if res:
+            records.append(paper)
+
+    if len(records) > 0:
+        print("Found {:d} papers".format(len(records)))
+        for record in records:
+            print(record)
+        return records
     else:
-        print('No one posted a paper today.')
+        print('No results.')
+        return None
 
 
-if __name__ == "__main__":
-
-    """ For command line arguments:
-        first arguments are arxiv names, i.e astro-ph gr-qc physics
-        last argument is file name for author list to check against """
-
-    import sys
-
-    if len(sys.argv) > 2:
-        check_authors(sys.argv[1:-1], sys.argv[-1])
-    else:
-        print('Please supply an arxiv name and a list of authors.')
