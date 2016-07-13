@@ -1,7 +1,7 @@
 arxiv-checker
 ============
 
-A Python module to search arXiv.org. You can cross check a list of authors or keywords against either the most recent arXiv mailing or a given month/year.  Works with python 2.7 and python 3
+A Python module to search arXiv.org. You can cross check a list of authors or keywords against either the most recent arXiv mailing or a given month/year.  Works with python 2.7 and python 3.
 
 To install::
 
@@ -22,31 +22,32 @@ If instead of names, you want to check each paper against a list of keywords in 
 
   papers = arxivchecker.check_keywords('astro-ph', ['Planet Formation','Hot Jupiter'])
   
-You can also grab all of the papers first::
+You can also grab all of the papers first using the scrape_arxiv function::
 
   papers = arxivchecker.scrape_arxiv('astro-ph')
-  arxivchecker.check_authors_from_papers(papers, 'Doe, Jane')
+  results = arxivchecker.check_authors_from_papers(papers, 'Doe, Jane')
 
 Similarly, for checking keywords::
   
   papers = arxivchecker.scrape_arxiv('astro-ph')
-  arxivchecker.check_keywords_from_papers(papers, ['GJ876','Gilese-876'])
+  results = arxivchecker.check_keywords_from_papers(papers, ['GJ876','Gilese-876'])
 
 If you want to grab all of the papers from a given month you can supply the year and month arguments::
   
-   papers = arxivchecker.scrape_arxiv('astro-ph',year=16,month=6) # June 2016
+  papers = arxivchecker.scrape_arxiv('astro-ph',year=2016,month=6) # June 2016
+  papers = arxivchecker.scrape_arxiv('astro-ph',year=2016,month='May') # May 2016
    
 Or grab all of the papers for a given year::
 
-  papers = arxivchecker.scrape_arxiv('astro-ph',year=16,month='all')
+  papers = arxivchecker.scrape_arxiv('astro-ph',year=2016,month='all')
   
 Note however that this can take a while to complete (there could be more than 10,000 papers), and arXiv discourages against crawling through the website. 
 
 Finally, to run straight from the command line::
 
-    python -c "import arxivchecker; arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt')
+    python -c "import arxivchecker; arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt') > results.txt
  
  
-The arxivchcker requires the request and bs4 modules. 
+The arxivchecker requires the request and bs4 modules. 
 
 
