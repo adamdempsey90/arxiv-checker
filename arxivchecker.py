@@ -12,8 +12,8 @@ class Paper():
 
         self.number = number
         self.title = title
-        self.authors = auths.values()
-        self.author_ids = auths.keys()
+        self.authors = list(auths.values())
+        self.author_ids = list(auths.keys())
         self.author_dict = auths.copy()
         self.abstract = abstract
         self.link = u'http://arxiv.org/abs/' + number
@@ -69,7 +69,7 @@ class Paper():
                 border + newline_char + \
                 newline_char
 
-        return strbody.encode("utf8","ignore")
+        return strbody        #return strbody.encode("utf8","ignore")
 
 def scrape_arxiv(arxiv_names,month=None,year=None,number=12000):
     """
@@ -155,10 +155,10 @@ def check_keywords(arxiv_names, keywords,month=None,year=None,number=12000):
 
     papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number)
 
-    return check_keywords_papers(papers,keywords)
+    return check_keywords_from_papers(papers,keywords)
 
 
-def check_keywords_papers(papers,keywords):
+def check_keywords_from_papers(papers,keywords):
     """ Check the given papers against a list of keywords.
     The keywords can either be in a text file or in a list.
     Returns a list of papers that contain the keywords in either their
@@ -207,9 +207,9 @@ def check_authors(arxiv_names, authors, month=None, year=None, number=12000):
 
     papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number)
 
-    return check_authors_papers(papers,authors)
+    return check_authors_from_papers(papers,authors)
 
-def check_authors_papers(papers,authors):
+def check_authors_from_papers(papers,authors):
     """ Check the given papers against a list of authors given in the form Last, First.
     The authors can either be in a text file or in a list.
     Returns a list of papers that contain the authors."""
