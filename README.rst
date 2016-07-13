@@ -1,23 +1,52 @@
 arxiv-checker
 ============
 
-Cross-check a file of author names against the most recent axiv.org
-mailing. Works with python 2.7 or python 3. 
+A Python module to search arXiv.org. You can cross check a list of authors or keywords against either the most recent arXiv mailing or a given month/year.  Works with python 2.7 and python 3
 
 To install::
 
   pip install arxiv-checker
 
-To check the names contained in authors.txt against the astro-ph, gq-qc, and
-physics mailings:: 
+To check the most recent mailings of several arXiv subjects against a list of authors::
 
   import arxivchecker
-  arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt')
+  papers = arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], ['Smith, John', 'Doe, Jane'])
 
-To run straight from the command line::
+When displayed, each paper lists the title, a clickable url link to the abstract, and the author list. 
+
+To check against a long list of names, use a file::
+  
+  papers = arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'names.txt')
+
+If instead of names, you want to check each paper against a list of keywords in the title and abstract use::
+
+  papers = arxivchecker.check_keywords('astro-ph', ['Planet Formation','Hot Jupiter'])
+  
+You can also grab all of the papers first::
+
+  papers = arxivchecker.scrape_arxiv('astro-ph')
+  arxivchecker.check_authors_from_papers(papers, 'Doe, Jane')
+
+Similarly, for checking keywords::
+  
+  papers = arxivchecker.scrape_arxiv('astro-ph')
+  arxivchecker.check_keywords_from_papers(papers, ['GJ876','Gilese-876'])
+
+If you want to grab all of the papers from a given month you can supply the year and month arguments::
+  
+   papers = arxivchecker.scrape_arxiv('astro-ph',year=16,month=6) # June 2016
+   
+Or grab all of the papers for a given year::
+
+  papers = arxivchecker.scrape_arxiv('astro-ph',year=16,month='all')
+  
+Note however that this can take a while to complete (there could be more than 10,000 papers), and arXiv discourages against crawling through the website. 
+
+Finally, to run straight from the command line::
 
     python -c "import arxivchecker; arxivchecker.check_authors(['astro-ph', 'gr-qc', 'physics'], 'authors.txt')
  
-The Arxiv Checker requires the request, bs4, and re modules. 
+ 
+The arxivchcker requires the request and bs4 modules. 
 
 
