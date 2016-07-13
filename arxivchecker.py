@@ -32,6 +32,21 @@ class Paper():
 
         return pad_left + (pad_right + '\n' + pad_left).join(temp) + pad_right
 
+    def __eq__(self,paper):
+        return (self.number == paper.number)
+
+    def __ne__(self,paper):
+        return not self.__eq__(paper)
+
+    def __le__(self,paper):
+        return float(self.number) <= float(paper.number)
+    def __ge__(self,paper):
+        return float(self.number) >= float(paper.number)
+    def __lt__(self,paper):
+        return float(self.number) <  float(paper.number)
+    def __gt__(self,paper):
+        return float(self.number) >  float(paper.number)
+
     def __str__(self):
         """ Display the paper in a somewhat nice looking way. """
 
@@ -209,7 +224,8 @@ def check_keywords_from_papers(papers,keywords):
         if any(key in ' '.join([paper.abstract.lower() , paper.title.lower()]
             + [a.lower() for a in paper.authors]) for key in keyword_list):
 
-            records.append(paper)
+            if paper not in records: # Make sure we don't have duplicates
+                records.append(paper)
 
 
 
@@ -269,7 +285,7 @@ def check_authors_from_papers(papers,authors):
                     res = True
             except KeyError:
                pass
-        if res:
+        if res and paper not in records:
             records.append(paper)
 
     if len(records) > 0:
