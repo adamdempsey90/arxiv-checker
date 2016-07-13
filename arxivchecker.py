@@ -86,10 +86,28 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000):
     Use the number argument to only select a certain number of papers.
     Note that it takes roughly 30-40 seconds to grab ~1,500 papers.
     """
-
     new = False
     if None in [month,year]:
         new = True
+    else:
+        month_dict = {'jan':1, 'january':1,
+                'feb':2, 'feburary':2,
+                'mar':3, 'march':3,
+                'apr':4, 'april':4,
+                'may':5,
+                'jun':6, 'june':6,
+                'jul':7, 'july':7,
+                'aug':8, 'august':8,
+                'sep':9, 'september':9,
+                'oct':10, 'october':10,
+                'nov':11, 'november':11,
+                'dec':12, 'december':12}
+        try:
+            month = month_dict[month.lower()]
+        except AttributeError:
+            pass
+
+        year = int(str(year)[-2:])  # Last 2 digits of the year
 
     if hasattr(arxiv_names, 'lower') and hasattr(arxiv_names, 'upper'):
         # We have just a single arxiv
@@ -250,7 +268,7 @@ def check_authors_from_papers(papers,authors):
                 if name in paper_name.lower():
                     res = True
             except KeyError:
-                continue
+               pass
         if res:
             records.append(paper)
 
