@@ -92,7 +92,7 @@ class Paper():
             strbody = strbody.encode("utf8","ignore")
         return strbody
 
-def scrape_arxiv(arxiv_names,month=None,year=None,number=12000):
+def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute=False):
     """
     Scrape the given arxiv pages.
     By default we grab all of the papers in the latest listing.
@@ -145,59 +145,67 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000):
             except AttributeError:
                 url_str = url_str + '?year={:02d}&month={:02d}&archive={}&show={:d}'.format(year,month,arxiv_name,number)
 
-        print(u'\tChecking ' + url_str)
+        if not mute:
+            print(u'\tChecking ' + url_str)
         bowl = requests.get(url_str)
-        print(u'\tParsing data...')
+        if not mute:
+            print(u'\tParsing data...')
         soup = bs4.BeautifulSoup(bowl.text, 'html.parser')
 
         # Every new paper is enclosed in <dd> </dd> tags
         entries = soup.find_all('dd')
-        auth_t = [entry.find_next('div', {'class': 'list-authors'}).text.split(
-            'Authors:')[-1].strip().split(', \n') for entry in entries]
-        handles = [[val['href'].split('+')[-1].split('/')[0].lower()
-                    for val in entry.find_all('a')] for entry in entries]
 
-        authors = authors + [dict(zip(h, a))
-                             for h, a in zip(handles, auth_t)]
+        if len(entries) > 0:
+            auth_t = [entry.find_next('div', {'class': 'list-authors'}).text.split(
+                'Authors:')[-1].strip().split(', \n') for entry in entries]
+            handles = [[val['href'].split('+')[-1].split('/')[0].lower()
+                        for val in entry.find_all('a')] for entry in entries]
 
-        titles_t = [entry.find_next('div', {'class': 'list-title'}).text.split('Title:')[-1].strip()  for entry in entries]
+            authors = authors + [dict(zip(h, a))
+                                 for h, a in zip(handles, auth_t)]
 
-        if new:
-            abstracts_t = []
-            for entry in entries:
-                temp = entry.find_next('p', {'class': 'mathjax'})
-                if temp is None:
-                    abstracts_t.append('')
-                else:
-                    abstracts_t.append(temp.text)
+            titles_t = [entry.find_next('div', {'class': 'list-title'}).text.split('Title:')[-1].strip()  for entry in entries]
+
+            if new:
+                abstracts_t = []
+                for entry in entries:
+                    temp = entry.find_next('p', {'class': 'mathjax'})
+                    if temp is None:
+                        abstracts_t.append('')
+                    else:
+                        abstracts_t.append(temp.text)
+            else:
+                abstracts_t = ['']*len(entries)
+
+
+            abstracts = abstracts + abstracts_t
+
+            titles = titles + titles_t
+
+            # Arxiv numbers are before the <dd> tag
+            numbers_t = soup.find_all('span', {'class': 'list-identifier'})
+            numbers = numbers + [re.findall("\d+\.\d+", num.text)[0]
+                                 for num in numbers_t]
         else:
-            abstracts_t = ['']*len(entries)
+            if not silent and not mute:
+                print(u'No papers found at the url {}, are you sure {} is a proper archive?'.format(url_str,arxiv_name))
 
-
-        abstracts = abstracts + abstracts_t
-
-        titles = titles + titles_t
-
-        # Arxiv numbers are before the <dd> tag
-        numbers_t = soup.find_all('span', {'class': 'list-identifier'})
-        numbers = numbers + [re.findall("\d+\.\d+", num.text)[0]
-                             for num in numbers_t]
     return [Paper(*res) for res in zip(numbers,titles,authors,abstracts)]
 
 
 
-def check_keywords(arxiv_names, keywords,month=None,year=None,number=12000):
+def check_keywords(arxiv_names, keywords,month=None,year=None,number=12000, silent=False, mute=False):
     """ Check the given arxivs against a list of keywords.
     The keywords can either be in a text file or in a list.
     Returns a list of papers that contain the keywords in either their
     title, abstract, or author list."""
 
-    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number)
+    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number,silent=silent,mute=mute)
 
-    return check_keywords_from_papers(papers,keywords)
+    return check_keywords_from_papers(papers,keywords,silent=silent,mute=mute)
 
 
-def check_keywords_from_papers(papers,keywords):
+def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
     """ Check the given papers against a list of keywords.
     The keywords can either be in a text file or in a list.
     Returns a list of papers that contain the keywords in either their
@@ -206,15 +214,18 @@ def check_keywords_from_papers(papers,keywords):
     try:
         if os.path.exists(keywords):
             with open(keywords, 'r') as f:
-                print('Reading the keywords contained in ' + keywords)
+                if not mute:
+                    print('Reading the keywords contained in ' + keywords)
                 keyword_list = f.readlines()
             keyword_list = [line.strip().lower() for line in keyword_list]
         else:
-            print('Checking for ' + keywords)
+            if not mute:
+                print('Checking for ' + keywords)
             keyword_list = [keywords.strip().lower()]
 
     except TypeError:
-        print('Checking for the keywords: ' + '; '.join(keywords))
+        if not mute:
+            print('Checking for the keywords: ' + '; '.join(keywords))
         keyword_list = [line.strip().lower() for line in keywords]
 
 
@@ -230,71 +241,87 @@ def check_keywords_from_papers(papers,keywords):
 
 
     if len(records) > 0:
-        print("Found {:d} papers".format(len(records)))
-        for record in records:
-            print(record)
+        if not mute:
+            print("Found {:d} papers".format(len(records)))
+            for record in records:
+                print(record)
 
         return records
     else:
-        print('No results.')
+        if not mute:
+            print('No results.')
         return None
 
 
-def check_authors(arxiv_names, authors, month=None, year=None, number=12000):
+def check_authors(arxiv_names, authors, month=None, year=None, number=12000,silent=False,mute=False):
     """ Check the given arxivs against a list of authors given in the form Last, First.
     The authors can either be in a text file or in a list.
     Returns a list of papers that contain the authors."""
 
-    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number)
+    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number,silent=silent,mute=mute)
 
-    return check_authors_from_papers(papers,authors)
+    return check_authors_from_papers(papers,authors,silent=silent,mute=mute)
 
-def check_authors_from_papers(papers,authors):
+def check_authors_from_papers(papers,authors,silent=False,mute=False):
     """ Check the given papers against a list of authors given in the form Last, First.
     The authors can either be in a text file or in a list.
-    Returns a list of papers that contain the authors."""
+    Returns a list of papers that contain the authors.
+    Set silent = True if you don't want to see warnings.
+    Set mute = True if you  don't want to see the progress reports.
+    """
 
     try:
         if os.path.exists(authors):
             with open(authors, 'r') as f:
-                print('Reading the names contained in ' + authors)
+                if not mute:
+                    print('Reading the names contained in ' + authors)
                 author_list = f.readlines()
             author_list = [line.strip().lower() for line in author_list]
         else:
-            print('Checking for ' + authors)
+            if not mute:
+                print('Checking for ' + authors)
             author_list = [authors.strip().lower()]
 
     except TypeError:
-        print('Checking for the names: ' + '; '.join(authors))
+        if not mute:
+            print('Checking for the names: ' + '; '.join(authors))
         author_list = [line.strip().lower() for line in authors]
 
 
 
-    first_names = [line.split(',')[1].strip().lower() for line in author_list]
+    last_names = [line.split(',')[0].strip().lower() if len(line.split(','))>1 else line.strip().lower() for line in author_list]
+    first_names = [line.split(',')[1].strip().lower() if len(line.split(','))>1 else '*' for line in author_list]
     id_list = [(line.split(',')[0].replace('-', '_').strip() + '_' +
-                line.split(',')[1].strip()[0]).lower() for line in author_list]
+                line.split(',')[1].strip()[0]).lower() if len(line.split(','))>1 else line.strip().lower() for line in author_list]
 
 
     records = []
     for paper in papers:
         res = False
-        for name,id_t in zip(first_names,id_list):
+        for fname,lname,id_t in zip(first_names,last_names,id_list):
             try:
                 paper_name = paper.author_dict[id_t]
-                if name in paper_name.lower():
+                if fname in paper_name.lower():
                     res = True
             except KeyError:
-               pass
+                if fname == '*':
+                    if lname in ' '.join(paper.authors).lower():
+                        if not silent and not mute:
+                            print(u'Found {} in {}, but no first name was supplied!'.format(lname,paper.number))
+                        res = True
+
         if res and paper not in records:
             records.append(paper)
 
     if len(records) > 0:
-        print("Found {:d} papers".format(len(records)))
-        for record in records:
-            print(record)
+        if not mute:
+            print("Found {:d} papers".format(len(records)))
+            for record in records:
+                    print(record)
         return records
     else:
-        print('No results.')
+        if not mute:
+            print('No results.')
         return None
 
 
