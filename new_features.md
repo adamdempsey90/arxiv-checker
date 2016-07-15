@@ -1,0 +1,4 @@
+- [ ] Sort results by # of keyword hits / # of author hits.
+- [ ] Saving and reading list of papers to a file
+- [ ] And notebook of examples
+
