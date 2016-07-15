@@ -24,13 +24,20 @@ class Paper():
     def format_line(self,strval, maxlength,pad_left,pad_right):
         """ Function to format a line of a given length.
         Used by the __str__ routine."""
-        temp = re.sub("(.{" + "{:d}".format(maxlength-1) + "})", u"\\1\u2010\n", strval.replace('\n',''), 0, re.DOTALL).strip()
+        temp = re.sub("(.{" + "{:d}".format(maxlength) + "})", u"\\1\u2010\n", strval.replace('\n',''), 0, re.DOTALL).strip()
 
         temp = temp.split('\n')
 
         temp[-1] = temp[-1] +''.join([u'\u0020']*(maxlength-len(temp[-1])))
+        if len(temp) > 1:
+            temp[0] = temp[0][:-1]+temp[0][-1]
 
         return pad_left + (pad_right + '\n' + pad_left).join(temp) + pad_right
+
+    def save(self,filename):
+        with open(filename,"a") as f:
+            f.write(str(self))
+
 
     def __eq__(self,paper):
         return (self.number == paper.number)
@@ -91,6 +98,100 @@ class Paper():
         if sys.version_info < (3,):
             strbody = strbody.encode("utf8","ignore")
         return strbody
+
+def read_papers(filename):
+    with open(filename,"r") as f:
+        lines = f.readlines()
+
+    papers = []
+    index_start = 0
+    index_end = 0
+    have_start = False
+
+    for i,line in enumerate(lines):
+        line = line.decode('utf8')
+
+        if line.count(u'\u0025') > 10:
+            if have_start:
+                # End of new paper
+                index_end = i
+
+                papers.append(read_single_paper('\n'.join(lines[index_start:(index_end+1)])))
+                have_start = False
+            else:
+                # Beggining of new paper
+                index_start = i
+                have_start = True
+
+    return papers
+
+def read_single_paper(sample):
+
+    sample = sample.replace(u'\u0025','').strip()
+
+    try:
+        sample = sample.decode('utf8')
+    except UnicodeEncodeError:
+        pass
+
+    try:
+        title,url,authors = '\n'.join(sample).replace(u'\u2010\u000A','').strip().split(u'\u000A\u000A')
+    except ValueError:
+        print('Caught it')
+        print('\n'.join(sample).replace(u'\u2010\u000A','').strip().split(u'\u000A\u000A'))
+        return sample
+
+    authors = [auth.replace(u'\u0026','').strip() for auth in authors.split(u'\u002C')]
+
+    authors_id = [auth.split()[-1] + u'\u005F' + auth.split()[0][0].upper() for auth in authors]
+
+
+    authors_dict = {key:val for key,val in zip(authors_id,authors)}
+
+    number = url.split('/')[-1]
+
+
+    return Paper(number,title,authors_dict,'')
+
+
+def authors_list_to_dict(author_list):
+
+    authors_dict = {}
+    for a in author_list:
+
+        if '(' in a:
+            # We have an affiliation
+            a = a.split('(')[0]
+            #a = ' ' .join(a.split('(')[0])
+        temp = a.split()
+
+        if len(temp) > 2:
+            # More than two names, take first and last
+            name = (temp[0],temp[-1])
+        elif len(temp) == 1:
+            # Just one name, probably a spacing error
+            temp = temp[0].split('.')
+            name = (temp[0],temp[-1])
+        else:
+            # Two names
+            name = (temp[0],temp[1])
+
+        authors_dict[name[1]+'_'+name[0][0].upper()] = ' '.join(temp)
+    return authors_dict
+
+def read_paper_from_url(number):
+
+    bowl = requests.get('http://arxiv.org/abs/'+ str(number))
+    soup = bs4.BeautifulSoup(bowl.text, 'html.parser')
+    title = soup.find_all('h1',attrs={'class':'title mathjax'})[0].text.split('Title:')[-1].strip()
+
+    authors = [x.strip() for x in soup.find_all('div',attrs={'class': 'authors'})[0].text.split('Authors:')[-1].split(',')]
+
+    abstract =  soup.find_all('blockquote',attrs={'class':'abstract mathjax'})[0].text.split('Abstract:')[-1].strip()
+
+
+    return Paper(number,title,authors_list_to_dict(authors),abstract)
+
 
 def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute=False):
     """
@@ -158,11 +259,11 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute
         if len(entries) > 0:
             auth_t = [entry.find_next('div', {'class': 'list-authors'}).text.split(
                 'Authors:')[-1].strip().split(', \n') for entry in entries]
-            handles = [[val['href'].split('+')[-1].split('/')[0].lower()
-                        for val in entry.find_all('a')] for entry in entries]
-
-            authors = authors + [dict(zip(h, a))
-                                 for h, a in zip(handles, auth_t)]
+            #handles = [[val['href'].split('+')[-1].split('/')[0].lower()
+            #            for val in entry.find_all('a')] for entry in entries]
+            authors = authors + [ authors_list_to_dict(x) for x in auth_t ]
+            #authors = authors + [dict(zip(h, a))
+            #                     for h, a in zip(handles, auth_t)]
 
             titles_t = [entry.find_next('div', {'class': 'list-title'}).text.split('Title:')[-1].strip()  for entry in entries]
 
@@ -190,7 +291,7 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute
             if not silent and not mute:
                 print(u'No papers found at the url {}, are you sure {} is a proper archive?'.format(url_str,arxiv_name))
 
-    return [Paper(*res) for res in zip(numbers,titles,authors,abstracts)]
+    return { res[0]:Paper(*res) for res in zip(numbers,titles,authors,abstracts) }
 
 
 
@@ -231,7 +332,13 @@ def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
 
     records = []
 
-    for paper in papers:
+
+    try:
+        paper_list = list(papers.values())
+    except AttributeError:
+        paper_list = list(papers)
+
+    for paper in paper_list:
         if any(key in ' '.join([paper.abstract.lower() , paper.title.lower()]
             + [a.lower() for a in paper.authors]) for key in keyword_list):
 
@@ -246,7 +353,7 @@ def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
             for record in records:
                 print(record)
 
-        return records
+        return { r.number: r for r in records }
     else:
         if not mute:
             print('No results.')
@@ -296,7 +403,12 @@ def check_authors_from_papers(papers,authors,silent=False,mute=False):
 
 
     records = []
-    for paper in papers:
+    try:
+        paper_list = list(papers.values())
+    except AttributeError:
+        paper_list = list(papers)
+
+    for paper in paper_list:
         res = False
         for fname,lname,id_t in zip(first_names,last_names,id_list):
             try:
@@ -318,7 +430,7 @@ def check_authors_from_papers(papers,authors,silent=False,mute=False):
             print("Found {:d} papers".format(len(records)))
             for record in records:
                     print(record)
-        return records
+        return {r.number : r for r in records}
     else:
         if not mute:
             print('No results.')
