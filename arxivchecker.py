@@ -34,6 +34,10 @@ class Paper():
 
         return pad_left + (pad_right + '\n' + pad_left).join(temp) + pad_right
 
+    def get_search_string(self):
+
+        return '  '.join([self.abstract.lower(),self.title.lower(), self.number] + [a.lower() for a in self.author_ids] +  [a.lower() for a in self.authors])
+
     def save(self,filename):
         with open(filename,"a") as f:
             f.write(str(self))
@@ -99,59 +103,7 @@ class Paper():
             strbody = strbody.encode("utf8","ignore")
         return strbody
 
-def read_papers(filename):
-    with open(filename,"r") as f:
-        lines = f.readlines()
 
-    papers = []
-    index_start = 0
-    index_end = 0
-    have_start = False
-
-    for i,line in enumerate(lines):
-        line = line.decode('utf8')
-
-        if line.count(u'\u0025') > 10:
-            if have_start:
-                # End of new paper
-                index_end = i
-
-                papers.append(read_single_paper('\n'.join(lines[index_start:(index_end+1)])))
-                have_start = False
-            else:
-                # Beggining of new paper
-                index_start = i
-                have_start = True
-
-    return papers
-
-def read_single_paper(sample):
-
-    sample = sample.replace(u'\u0025','').strip()
-
-    try:
-        sample = sample.decode('utf8')
-    except UnicodeEncodeError:
-        pass
-
-    try:
-        title,url,authors = '\n'.join(sample).replace(u'\u2010\u000A','').strip().split(u'\u000A\u000A')
-    except ValueError:
-        print('Caught it')
-        print('\n'.join(sample).replace(u'\u2010\u000A','').strip().split(u'\u000A\u000A'))
-        return sample
-
-    authors = [auth.replace(u'\u0026','').strip() for auth in authors.split(u'\u002C')]
-
-    authors_id = [auth.split()[-1] + u'\u005F' + auth.split()[0][0].upper() for auth in authors]
-
-
-    authors_dict = {key:val for key,val in zip(authors_id,authors)}
-
-    number = url.split('/')[-1]
-
-
-    return Paper(number,title,authors_dict,'')
 
 
 def authors_list_to_dict(author_list):
@@ -193,7 +145,7 @@ def read_paper_from_url(number):
     return Paper(number,title,authors_list_to_dict(authors),abstract)
 
 
-def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute=False):
+def scrape_arxiv(arxiv_names,new=True,recent=False,month=None,year=None,number=200,skip=0,silent=False,mute=False):
     """
     Scrape the given arxiv pages.
     By default we grab all of the papers in the latest listing.
@@ -202,10 +154,16 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute
     Use the number argument to only select a certain number of papers.
     Note that it takes roughly 30-40 seconds to grab ~1,500 papers.
     """
-    new = False
-    if None in [month,year]:
-        new = True
+
+
+    if new and month is not None and year is not None:
+        new = False
+    elif recent and month is not None and year is not None:
+        new = False
+
     else:
+        new = False
+        recent = False
         month_dict = {'jan':1, 'january':1,
                 'feb':2, 'feburary':2,
                 'mar':3, 'march':3,
@@ -217,28 +175,30 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute
                 'sep':9, 'september':9,
                 'oct':10, 'october':10,
                 'nov':11, 'november':11,
-                'dec':12, 'december':12}
+                'dec':12, 'december':12,
+                'all':'all'}
         try:
             month = month_dict[month.lower()]
         except AttributeError:
             pass
 
-        year = int(str(year)[-2:])  # Last 2 digits of the year
+        try:
+            year = int(str(year)[-2:])  # Last 2 digits of the year
+        except ValueError:
+            pass
 
     if hasattr(arxiv_names, 'lower') and hasattr(arxiv_names, 'upper'):
         # We have just a single arxiv
         arxiv_names = [arxiv_names]
 
-    authors = []
-    titles = []
-    numbers = []
-    abstracts= []
-
+    res = {}
     for arxiv_name in arxiv_names:
 
         url_str = u'http://arxiv.org/list/'
         if new:
             url_str = url_str +  arxiv_name + u'/new'
+        elif recent:
+            url_str = url_str + arxiv_name + u'/pastweek?skip={:d}&show={:d}'.format(skip,number)
         else:
             try:
                 if month.lower() == 'all':
@@ -249,62 +209,82 @@ def scrape_arxiv(arxiv_names,month=None,year=None,number=12000,silent=False,mute
         if not mute:
             print(u'\tChecking ' + url_str)
         bowl = requests.get(url_str)
-        if not mute:
+        if not silent:
             print(u'\tParsing data...')
         soup = bs4.BeautifulSoup(bowl.text, 'html.parser')
 
         # Every new paper is enclosed in <dd> </dd> tags
         entries = soup.find_all('dd')
 
-        if len(entries) > 0:
-            auth_t = [entry.find_next('div', {'class': 'list-authors'}).text.split(
-                'Authors:')[-1].strip().split(', \n') for entry in entries]
-            #handles = [[val['href'].split('+')[-1].split('/')[0].lower()
-            #            for val in entry.find_all('a')] for entry in entries]
-            authors = authors + [ authors_list_to_dict(x) for x in auth_t ]
-            #authors = authors + [dict(zip(h, a))
-            #                     for h, a in zip(handles, auth_t)]
+        cutoff = 0
+        for list_item in soup.find_all('li'):
+            temp = list_item.find_next('a')
+            if temp.text == 'Replacements':
+                cutoff = int(re.findall(r'\d+',temp['href'])[0])
 
-            titles_t = [entry.find_next('div', {'class': 'list-title'}).text.split('Title:')[-1].strip()  for entry in entries]
 
-            if new:
-                abstracts_t = []
-                for entry in entries:
-                    temp = entry.find_next('p', {'class': 'mathjax'})
-                    if temp is None:
-                        abstracts_t.append('')
-                    else:
-                        abstracts_t.append(temp.text)
+
+        numbers = [re.findall('\d*\.\d+|\d+',num.text)[0] for num in soup.find_all('span', {'class': 'list-identifier'})][:cutoff-1]
+
+
+
+        for i, (num, entry) in enumerate(zip(numbers, entries[:cutoff-1]),start=1):
+
+            authors = entry.find_next('div', {'class': 'list-authors'}).text.split('Authors:')[-1].strip().split(', \n')
+            authors = authors_list_to_dict(authors)
+
+            title = entry.find_next('div', {'class': 'list-title'}).text.split('Title:')[-1].strip()
+            abstract = entry.find_next('p', {'class': 'mathjax'})
+
+            if abstract is None:
+                abstract = ''
             else:
-                abstracts_t = ['']*len(entries)
+                abstract = abstract.text
 
-
-            abstracts = abstracts + abstracts_t
-
-            titles = titles + titles_t
-
-            # Arxiv numbers are before the <dd> tag
-            numbers_t = soup.find_all('span', {'class': 'list-identifier'})
-            numbers = numbers + [re.findall("\d+\.\d+", num.text)[0]
-                                 for num in numbers_t]
-        else:
-            if not silent and not mute:
-                print(u'No papers found at the url {}, are you sure {} is a proper archive?'.format(url_str,arxiv_name))
-
-    return { res[0]:Paper(*res) for res in zip(numbers,titles,authors,abstracts) }
+            res[num] = Paper(num,title,authors,abstract)
 
 
 
-def check_keywords(arxiv_names, keywords,month=None,year=None,number=12000, silent=False, mute=False):
+    return res
+
+
+
+def check_keywords(arxiv_names, keywords,new=True,recent=False,month=None,year=None,number=200, skip=0, silent=True, mute=False):
     """ Check the given arxivs against a list of keywords.
     The keywords can either be in a text file or in a list.
     Returns a list of papers that contain the keywords in either their
     title, abstract, or author list."""
 
-    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number,silent=silent,mute=mute)
+    papers = scrape_arxiv(arxiv_names,new=new,recent=recent,month=month,year=year,number=number,skip=skip,silent=silent,mute=mute)
 
     return check_keywords_from_papers(papers,keywords,silent=silent,mute=mute)
 
+
+def load_keywords(keywords):
+    try:
+        if os.path.exists(keywords):
+            with open(keywords, 'r') as f:
+                keyword_list = f.readlines()
+            keyword_list = [line.strip().lower() for line in keyword_list]
+        else:
+            keyword_list = [keywords.strip().lower()]
+
+    except TypeError:
+        keyword_list = [line.strip().lower() for line in keywords]
+
+    res_list = []
+
+    for key in keyword_list:
+        res_list.append(key)
+        if ',' in key:
+            key = key.split(',')
+
+            last_name = key[0].strip().title()
+            first_name = key[1].strip().title()
+            res_list.append((first_name +' ' + last_name).lower())
+            res_list.append((last_name + '_' + first_name[0]).lower())
+
+    return res_list
 
 def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
     """ Check the given papers against a list of keywords.
@@ -312,26 +292,11 @@ def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
     Returns a list of papers that contain the keywords in either their
     title, abstract, or author list."""
 
-    try:
-        if os.path.exists(keywords):
-            with open(keywords, 'r') as f:
-                if not mute:
-                    print('Reading the keywords contained in ' + keywords)
-                keyword_list = f.readlines()
-            keyword_list = [line.strip().lower() for line in keyword_list]
-        else:
-            if not mute:
-                print('Checking for ' + keywords)
-            keyword_list = [keywords.strip().lower()]
 
-    except TypeError:
-        if not mute:
-            print('Checking for the keywords: ' + '; '.join(keywords))
-        keyword_list = [line.strip().lower() for line in keywords]
+    keyword_list = load_keywords(keywords)
 
 
-    records = []
-
+    record_list = []
 
     try:
         paper_list = list(papers.values())
@@ -339,101 +304,40 @@ def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
         paper_list = list(papers)
 
     for paper in paper_list:
-        if any(key in ' '.join([paper.abstract.lower() , paper.title.lower()]
-            + [a.lower() for a in paper.authors]) for key in keyword_list):
+        hits = [paper.get_search_string().count(key) for key in keyword_list]
+        res_count = sum(hits)
+        if res_count > 0:
+            found_keys = [key for hit,key in zip(hits,keyword_list) if hit >0]
+            record_list.append((res_count,found_keys,paper))
 
-            if paper not in records: # Make sure we don't have duplicates
-                records.append(paper)
 
-
-
-    if len(records) > 0:
+    if len(record_list) > 0:
+        record_list = sorted(record_list,reverse=True)
         if not mute:
-            print("Found {:d} papers".format(len(records)))
-            for record in records:
-                print(record)
+            print("Found {:d} {}".format(len(record_list),'papers' if len(record_list)>1 else 'paper'))
+            for record in record_list:
+                print('{:d} {}'.format(record[0], 'hits' if record[0]>1 else 'hit'))
+                print(record[1])
+                print(record[-1])
 
-        return { r.number: r for r in records }
+            return {temp[-1].number:temp[-1] for temp in record_list}
     else:
         if not mute:
             print('No results.')
         return None
 
 
-def check_authors(arxiv_names, authors, month=None, year=None, number=12000,silent=False,mute=False):
+
+
+
+def check_authors(arxiv_names, authors, new=True,recent=False, month=None, year=None, number=200,skip=0,silent=False,mute=False):
     """ Check the given arxivs against a list of authors given in the form Last, First.
     The authors can either be in a text file or in a list.
     Returns a list of papers that contain the authors."""
 
-    papers = scrape_arxiv(arxiv_names,month=month,year=year,number=number,silent=silent,mute=mute)
+    papers = scrape_arxiv(arxiv_names,new=new,recent=recent,month=month,year=year,number=number,skip=skip,silent=silent,mute=mute)
 
-    return check_authors_from_papers(papers,authors,silent=silent,mute=mute)
+    return check_keywords_from_papers(papers,authors,silent=silent,mute=mute)
 
-def check_authors_from_papers(papers,authors,silent=False,mute=False):
-    """ Check the given papers against a list of authors given in the form Last, First.
-    The authors can either be in a text file or in a list.
-    Returns a list of papers that contain the authors.
-    Set silent = True if you don't want to see warnings.
-    Set mute = True if you  don't want to see the progress reports.
-    """
-
-    try:
-        if os.path.exists(authors):
-            with open(authors, 'r') as f:
-                if not mute:
-                    print('Reading the names contained in ' + authors)
-                author_list = f.readlines()
-            author_list = [line.strip().lower() for line in author_list]
-        else:
-            if not mute:
-                print('Checking for ' + authors)
-            author_list = [authors.strip().lower()]
-
-    except TypeError:
-        if not mute:
-            print('Checking for the names: ' + '; '.join(authors))
-        author_list = [line.strip().lower() for line in authors]
-
-
-
-    last_names = [line.split(',')[0].strip().lower() if len(line.split(','))>1 else line.strip().lower() for line in author_list]
-    first_names = [line.split(',')[1].strip().lower() if len(line.split(','))>1 else '*' for line in author_list]
-    id_list = [(line.split(',')[0].replace('-', '_').strip() + '_' +
-                line.split(',')[1].strip()[0]).lower() if len(line.split(','))>1 else line.strip().lower() for line in author_list]
-
-
-    records = []
-    try:
-        paper_list = list(papers.values())
-    except AttributeError:
-        paper_list = list(papers)
-
-    for paper in paper_list:
-        res = False
-        for fname,lname,id_t in zip(first_names,last_names,id_list):
-            try:
-                paper_name = paper.author_dict[id_t]
-                if fname in paper_name.lower():
-                    res = True
-            except KeyError:
-                if fname == '*':
-                    if lname in ' '.join(paper.authors).lower():
-                        if not silent and not mute:
-                            print(u'Found {} in {}, but no first name was supplied!'.format(lname,paper.number))
-                        res = True
-
-        if res and paper not in records:
-            records.append(paper)
-
-    if len(records) > 0:
-        if not mute:
-            print("Found {:d} papers".format(len(records)))
-            for record in records:
-                    print(record)
-        return {r.number : r for r in records}
-    else:
-        if not mute:
-            print('No results.')
-        return None
 
 
