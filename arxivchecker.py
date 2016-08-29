@@ -155,11 +155,9 @@ def scrape_arxiv(arxiv_names,new=True,recent=False,month=None,year=None,number=2
     Note that it takes roughly 30-40 seconds to grab ~1,500 papers.
     """
 
-
-    if new and month is not None and year is not None:
-        new = False
-    elif recent and month is not None and year is not None:
-        new = False
+    if month is None and year is None:
+        if new:
+            recent = False
 
     else:
         new = False
