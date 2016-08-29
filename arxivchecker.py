@@ -2,6 +2,7 @@
 from __future__ import print_function
 import requests
 import bs4
+import json
 import re
 import sys
 import os
@@ -10,16 +11,26 @@ import os
 class Paper():
     """ A class that holds the information for an Arxiv paper. """
 
-    def __init__(self, number, title, auths,abstract):
+    def __init__(self, number=None, title=None, auths=None,abstract=None,fromfile=None):
         """ Initialize a paper with the arxiv number, title, authors, and abstract. """
 
-        self.number = number
-        self.title = title
-        self.authors = list(auths.values())
-        self.author_ids = list(auths.keys())
-        self.author_dict = auths.copy()
-        self.abstract = abstract
-        self.link = u'http://arxiv.org/abs/' + number
+        if fromfile is not None:
+            self.load(fromfile)
+
+        else:
+            self.number = number
+            self.title = title
+            if auths is not None:
+                self.authors = list(auths.values())
+                self.author_ids = list(auths.keys())
+                self.author_dict = auths.copy()
+            else:
+                self.authors = None
+                self.author_ids = None
+                self.author_dict = None
+
+            self.abstract = abstract
+            self.link = u'http://arxiv.org/abs/' + number
 
     def format_line(self,strval, maxlength,pad_left,pad_right):
         """ Function to format a line of a given length.
@@ -40,7 +51,18 @@ class Paper():
 
     def save(self,filename):
         with open(filename,"a") as f:
-            f.write(str(self))
+            json.dump(vars(self),f)
+    def load(self,filename):
+        try:
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    dat = json.load(f)
+            else:
+                dat = filename
+        except TypeError:
+            dat = filename
+        for key,val in dat.items():
+            setattr(self,key,val)
 
 
     def __eq__(self,paper):
@@ -104,8 +126,27 @@ class Paper():
         return strbody
 
 
+def save_many(papers,filename):
 
+    try:
+        papers = list(papers.values())
+    except AttributeError:
+        try:
+            papers = list(papers)
+        except TypeError:
+            papers = [papers]
 
+    dat = [vars(paper) for paper in papers]
+    with open(filename,'w') as f:
+        json.dump(dat,f)
+
+def load_many(filename):
+
+    with open(filename,'r') as f:
+        dat = json.load(f)
+    papers =[Paper(fromfile=d) for d in dat]
+
+    return {paper.number: paper for paper in papers}
 def authors_list_to_dict(author_list):
 
     authors_dict = {}
@@ -284,6 +325,14 @@ def load_keywords(keywords):
 
     return res_list
 
+def check_authors_from_papers(papers,authors,silent=False,mute=False):
+    """ Check the given papers against a list of authors.
+    The authors can either be in a text file or in a list.
+    Returns a list of papers that contain the authors in either their
+    title, abstract, or author list."""
+    return check_keywords_from_papers(papers,authors,silent=silent,mute=mute)
+
+
 def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
     """ Check the given papers against a list of keywords.
     The keywords can either be in a text file or in a list.
@@ -328,7 +377,7 @@ def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
 
 
 
-def check_authors(arxiv_names, authors, new=True,recent=False, month=None, year=None, number=200,skip=0,silent=False,mute=False):
+def check_authors(arxiv_names, authors, new=True,recent=False, month=None, year=None, number=200,skip=0,silent=True,mute=False):
     """ Check the given arxivs against a list of authors given in the form Last, First.
     The authors can either be in a text file or in a list.
     Returns a list of papers that contain the authors."""

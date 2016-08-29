@@ -60,6 +60,6 @@ setup(
     # What does your project relate to?
     keywords='arXiv science research journal',
 
-    install_requires=['requests','bs4'],
+    install_requires=['requests','bs4','json'],
 
 )
