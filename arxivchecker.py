@@ -197,8 +197,8 @@ def scrape_arxiv(arxiv_names,new=True,recent=False,month=None,year=None,number=2
     """
 
     if month is None and year is None:
-        if new:
-            recent = False
+        if recent:
+            new = False
 
     else:
         new = False
