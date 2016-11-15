@@ -35,7 +35,7 @@ class Paper():
     def format_line(self,strval, maxlength,pad_left,pad_right):
         """ Function to format a line of a given length.
         Used by the __str__ routine."""
-        temp = re.sub("(.{" + "{:d}".format(maxlength) + "})", u"\\1\u2010\n", strval.replace('\n',''), 0, re.DOTALL).strip()
+        temp = re.sub("(.{" + "{:d}".format(maxlength) + "})", u"\\1-\n", strval.replace('\n',''), 0, re.DOTALL).strip()
 
         temp = temp.split('\n')
 
