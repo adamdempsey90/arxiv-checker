@@ -367,7 +367,7 @@ def check_keywords_from_papers(papers,keywords,silent=False,mute=False):
                 print(record[1])
                 print(record[-1])
 
-            return {temp[-1].number:temp[-1] for temp in record_list}
+        return {temp[-1].number:temp[-1] for temp in record_list}
     else:
         if not mute:
             print('No results.')
