@@ -30,7 +30,7 @@ You can also grab all of the papers first using the scrape_arxiv function::
 Similarly, for checking keywords::
   
     papers = arxivchecker.scrape_arxiv('astro-ph')
-    results = arxivchecker.check_keywords_from_papers(papers, ['GJ876','Gilese-876'])
+    results = arxivchecker.check_keywords_from_papers(papers, ['GJ876','Gliese-876'])
 
 If you want to grab all of the papers from a given month you can supply the year and month arguments::
   
@@ -45,7 +45,7 @@ Note however that this can take a while to complete (there could be more than 10
 
 Finally, to run straight from the command line::
 
-    python -c "import arxivchecker; arxivchecker.check_authors('astro-ph', 'authors.txt') > results.txt"
+    python -c "import arxivchecker; arxivchecker.check_authors('astro-ph', 'authors.txt')" > results.txt
 
 To email the results use the Unix mail command::
 
